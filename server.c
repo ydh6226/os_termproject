@@ -7,13 +7,15 @@
 #include<unistd.h>
 #include<fcntl.h>
 #include<wait.h>
+#include<arpa/inet.h>
 
 #include"server_func.h"
 
 #define SIZE sizeof(struct sockaddr_in)
 
-#define PORT_NUMBER 5000
+#define STORAGE_PORT 5001
 #define MAX_BUFF_SIZE 1024
+#define BLOCKED_IP "127.0.0.0"
 
 //end child process
 void child_handler(int sig);
@@ -22,6 +24,7 @@ void main()
 {
     int sockfd_listen;
     int sockfd_connect;
+    int clientLen=SIZE;
 
     pid_t pid;
 
@@ -40,7 +43,10 @@ void main()
     char fileBuff[MAX_BUFF_SIZE];
     
 
-    struct sockaddr_in server={AF_INET,htons(PORT_NUMBER),INADDR_ANY};
+    struct sockaddr_in server={AF_INET,htons(STORAGE_PORT),INADDR_ANY};
+    struct sockaddr_in client;
+    memset(&client,0x00,SIZE);
+    
     struct sigaction act;
 
     act.sa_handler=child_handler;
@@ -76,10 +82,18 @@ void main()
     printf("Waiting for connection...\n");
     
     while(1){
-        if((sockfd_connect=accept(sockfd_listen,NULL,NULL))==-1){
+        if((sockfd_connect=accept(sockfd_listen,(struct sockaddr*)&client,&clientLen))==-1){
             perror("accept() failed");
             continue;
         }
+        
+        if(strcmp(inet_ntoa(client.sin_addr),BLOCKED_IP)==0){
+            printf("Blocked IP connection attempt\n");
+            close(sockfd_connect);
+            continue;
+        }
+
+
 
         if((pid=fork())==-1){
             perror("fork() fail");
