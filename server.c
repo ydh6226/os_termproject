@@ -13,7 +13,7 @@
 
 #define SIZE sizeof(struct sockaddr_in)
 
-#define STORAGE_PORT 5001
+#define STORAGE_PORT 5000
 #define MAX_BUFF_SIZE 1024
 #define BLOCKED_IP "127.0.0.0"
 

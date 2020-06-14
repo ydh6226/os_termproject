@@ -19,7 +19,7 @@
 #define STORAGE_IP "127.0.0.1"
 #define STORAGE_PORT 5000
 
-#define PORXY_PORT 6000
+#define PROXY_PORT 6000
 
 //end child process
 void child_handler(int sig);
@@ -35,7 +35,7 @@ void main(int argc, char **argv)
 
     //menu1 : request file list
     char fileList[MAX_FILE_NUMBER][MAX_FILE_NAME];
-    int fileCount;
+    int fileCount=0;
 
     //menu2 : request file
     int filedes;
@@ -49,7 +49,7 @@ void main(int argc, char **argv)
     server.sin_addr.s_addr = inet_addr(STORAGE_IP);  
 
     //proxy address
-    struct sockaddr_in proxy={AF_INET,htons(STORAGE_PORT),INADDR_ANY};
+    struct sockaddr_in proxy={AF_INET,htons(PROXY_PORT),INADDR_ANY};
     struct sigaction act;
 
     act.sa_handler=child_handler;
@@ -57,6 +57,7 @@ void main(int argc, char **argv)
     act.sa_flags=SA_RESTART;
     sigaction(SIGCHLD,&act,NULL);
 
+    //make socket for accepting client
     if((sockfd_listen=socket(AF_INET,SOCK_STREAM,0))==-1){
         perror("socket() fail");
         printf("\n");
@@ -89,22 +90,20 @@ void main(int argc, char **argv)
                 close(sockfd_listen);
 
                 recv(sockfd_connect,&menu,sizeof(int),0);
-                menu=ntohl(menu);
 
-
+                //make socket for connecting storage server
                 if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
-                perror("socket() fail");
-                exit(1);
+                    perror("socket() fail");
+                    exit(1);
                 }
 
                 if (connect(sockfd, (struct sockaddr *)&server, SIZE) == -1){
                     perror("connect() fail");
                     exit(1);
                 }
-                menu=2;
 
-                menu=htonl(menu);
                 send(sockfd,&menu,sizeof(int),0);
+                
                 menu=ntohl(menu);
                 switch(menu){
                     case 1:
@@ -115,8 +114,14 @@ void main(int argc, char **argv)
                             if(fileList[i][0]==0){
                                 break;
                             }
-                            printf("%s\n",fileList[i]);
+                            fileCount++;
                         }
+
+                        send(sockfd_connect,fileList,fileCount*MAX_FILE_NAME,0);
+
+                        close(sockfd);
+                        close(sockfd_connect);
+                        exit(2);
                         break;
                     case 2:
                         printf("Input Filename : ");
@@ -149,11 +154,14 @@ void main(int argc, char **argv)
                                 break;
                             }
                         }
+
+                        close(sockfd);
+                        close(sockfd_connect);
+                        exit(3);
                         break;
                     default:
                         break;          
                 }
-                close(sockfd);
         }
         close(sockfd_connect);//parent process close a connect socket
     }
@@ -175,9 +183,6 @@ void child_handler(int sig)
                 break;
             case 3:
                 printf("File transfer ends\n");
-                break;
-            case 4:
-                //Client requested a file that does not exist on the server
                 break;
             default:
                 break;

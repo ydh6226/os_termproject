@@ -17,10 +17,10 @@
 #define MAX_BUFF_SIZE 1024
 
 #define STORAGE_IP "127.0.0.1"
-#define STORAGE_PORT 5001
+#define STORAGE_PORT 5000
 
 #define PROXY_IP "127.0.0.1"
-#define PORXY_PORT 6000
+#define PROXY_PORT 6000
 
 #define DOWNLOAD_DIR "./download/"
 
@@ -52,7 +52,7 @@ void main(int argc, char **argv)
     server.sin_addr.s_addr = inet_addr(STORAGE_IP);  
 
     //proxy address
-    struct sockaddr_in proxy = {AF_INET, htons(PORXY_PORT)};
+    struct sockaddr_in proxy = {AF_INET, htons(PROXY_PORT)};
     server.sin_addr.s_addr = inet_addr(PROXY_IP);
 
     sigset_t set1;
