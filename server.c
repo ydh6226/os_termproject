@@ -90,7 +90,7 @@ void main()
         if(strcmp(inet_ntoa(client.sin_addr),BLOCKED_IP)==0){
             printf("Blocked IP connection attempt\n");
             close(sockfd_connect); 
-            continue;
+            continue; 
         }
 
 
