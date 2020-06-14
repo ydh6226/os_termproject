@@ -17,7 +17,7 @@
 #define MAX_BUFF_SIZE 1024
 
 #define STORAGE_IP "127.0.0.1"
-#define STORAGE_PORT 5000
+#define STORAGE_PORT 5001
 
 #define PROXY_IP "127.0.0.1"
 #define PROXY_PORT 6000
@@ -158,7 +158,7 @@ void main(int argc, char **argv)
                 case 2:
                     printf("\nInput Filename : ");
                     scanf("%s",fileName);
-                    fflush(stdin);
+                    fgets(buff,MAX_BUFF_SIZE,stdin);
 
                     send(sockfd,fileName,strlen(fileName),0);
                     readSize=recv(sockfd,fileBuff,MAX_BUFF_SIZE,0);
@@ -173,6 +173,7 @@ void main(int argc, char **argv)
 
                     strcpy(filepath,DOWNLOAD_DIR);
                     strcat(filepath,fileName);
+                    unlink(filepath);
                     if((filedes=open(filepath,O_CREAT|O_EXCL|O_WRONLY,0644))==-1){
                             perror("\nopen() fail");
                             exit(1);
@@ -216,8 +217,8 @@ void child_handler(int sig)
                 break;
             case 3:
                 printf("\n------------------------------\n");
-                printf("File reception complete\n");
-                printf("\n------------------------------\n");
+                printf("File download complete\n");
+                printf("------------------------------\n");
                 break;
             default:
                 break;

@@ -9,13 +9,15 @@
 #include<wait.h>
 #include<arpa/inet.h>
 
-#include"server_func.h"
+#include"file_processing.h"
 
 #define SIZE sizeof(struct sockaddr_in)
 
-#define STORAGE_PORT 5000
+#define STORAGE_PORT 5001
 #define MAX_BUFF_SIZE 1024
 #define BLOCKED_IP "127.0.0.0"
+
+#define STORAGE_DIR "./storage/"
 
 //end child process
 void child_handler(int sig);
@@ -107,15 +109,18 @@ void main()
 
             switch(menu){
                 case 1:
-                    readFileList(fileList,&fileCount);
+                    readFileList(fileList,&fileCount,STORAGE_DIR);
                     send(sockfd_connect,fileList,fileCount*MAX_FILE_NAME,0);
 
                     close(sockfd_connect);
                     exit(2); //child process die
                     break;
                 case 2:
-                    read(sockfd_connect,fileName,MAX_FILE_NAME);
-                    readFileList(fileList,&fileCount);
+                    memset(fileName,0x00,sizeof(fileName));
+                    if(recv(sockfd_connect,fileName,MAX_FILE_NAME,0)==0){
+                        exit(5);
+                    }
+                    readFileList(fileList,&fileCount,STORAGE_DIR);
                     for(int i=0;i<fileCount;i++){
                         if((DoesNotFileExist=strcmp(fileName,fileList[i]))==0){//File exists
                             break;
@@ -133,9 +138,8 @@ void main()
                         exit(4);
                     }
 
-                    strcpy(filepath,"./file/");
+                    strcpy(filepath,STORAGE_DIR);
                     strcat(filepath,fileName);
-                    printf("%s\n",filepath);
                     if((filedes=open(filepath,O_RDONLY,0644))==-1){
                         perror("open() fail");
                         exit(1);
@@ -184,6 +188,9 @@ void child_handler(int sig)
                 break;
             case 4:
                 //Client requested a file that does not exist on the server
+                break;
+            case 5:
+                //Connect but do nothing
                 break;
             default:
                 break;

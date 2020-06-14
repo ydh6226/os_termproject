@@ -4,9 +4,9 @@
 #include<dirent.h>
 #include<unistd.h>
 
-#include"server_func.h"
+#include"file_processing.h"
 
-void readFileList(char fileList[][MAX_FILE_NAME],int *fileCount)
+void readFileList(char fileList[][MAX_FILE_NAME],int *fileCount,const char *dirName)
 {
     DIR *dirp;
     struct dirent *dentry;
@@ -14,7 +14,7 @@ void readFileList(char fileList[][MAX_FILE_NAME],int *fileCount)
     memset(fileList,0,MAX_FILE_NUMBER*MAX_FILE_NAME); 
     *fileCount=0;    
 
-    if((dirp=opendir("./file"))==NULL){
+    if((dirp=opendir(dirName))==NULL){
         perror("opendir() fail");
     }
 

@@ -9,17 +9,21 @@
 #include<fcntl.h>
 #include<fcntl.h>
 #include<wait.h>
+#include<time.h>
+
+#include"file_processing.h"
 
 #define SIZE sizeof(struct sockaddr_in)
 
-#define MAX_FILE_NUMBER 15 //number of file 
-#define MAX_FILE_NAME 20//length of filename
 #define MAX_BUFF_SIZE 1024
+#define MAX_CACHE_SIZE 3
 
 #define STORAGE_IP "127.0.0.1"
-#define STORAGE_PORT 5000
+#define STORAGE_PORT 5001
 
 #define PROXY_PORT 6000
+
+#define PROXY_CACHE_DIR "./cache/"
 
 //end child process
 void child_handler(int sig);
@@ -35,9 +39,10 @@ void main(int argc, char **argv)
 
     //menu1 : request file list
     char fileList[MAX_FILE_NUMBER][MAX_FILE_NAME];
-    int fileCount=0;
+    int fileCount;
 
     //menu2 : request file
+    int DoesNotFileExist;
     int filedes;
     int readSize;
     char fileName[MAX_FILE_NAME];
@@ -56,6 +61,8 @@ void main(int argc, char **argv)
     sigfillset(&act.sa_mask);
     act.sa_flags=SA_RESTART;
     sigaction(SIGCHLD,&act,NULL);
+
+    srand((unsigned)time(NULL));
 
     //make socket for accepting client
     if((sockfd_listen=socket(AF_INET,SOCK_STREAM,0))==-1){
@@ -110,6 +117,7 @@ void main(int argc, char **argv)
                         memset(fileList,0x00,MAX_FILE_NUMBER*MAX_FILE_NAME);
                         recv(sockfd,fileList,sizeof(fileList),0);
 
+                        fileCount=0;
                         for(int i=0;i<MAX_FILE_NUMBER;i++){
                             if(fileList[i][0]==0){
                                 break;
@@ -124,40 +132,102 @@ void main(int argc, char **argv)
                         exit(2);
                         break;
                     case 2:
-                        printf("Input Filename : ");
-                        scanf("%s",fileName);
-                        fflush(stdin);
-
-                        send(sockfd,fileName,strlen(fileName),0);
-                        readSize=recv(sockfd,fileBuff,MAX_BUFF_SIZE,0);
-
-                        if(strlen(fileBuff)==0){
-                            printf("File does not exist\n");
-                            break;
-                        }
-
-                        strcpy(filepath,"./download/");
-                        strcat(filepath,fileName);
-                        if((filedes=open(filepath,O_CREAT|O_EXCL|O_WRONLY,0644))==-1){
-                                perror("open() fail");
-                                exit(1);
-                        }
-
-                        while (1){
-                            write(filedes,fileBuff,readSize);
-
-                            memset(fileBuff, 0x00, MAX_BUFF_SIZE);
-                            readSize=recv(sockfd,fileBuff,MAX_BUFF_SIZE,0);
-
-                            if(readSize==0){
-                                printf("End of file download\n");
+                        memset(fileName,0x00,sizeof(fileName));
+                        recv(sockfd_connect,fileName,MAX_FILE_NAME,0);
+                        printf("%s\n",fileName);
+                        readFileList(fileList,&fileCount,PROXY_CACHE_DIR);
+                        for(int i=0;i<fileCount;i++){
+                            if((DoesNotFileExist=strcmp(fileName,fileList[i]))==0){//File exists
                                 break;
                             }
                         }
 
-                        close(sockfd);
-                        close(sockfd_connect);
-                        exit(3);
+                        //File does not exist in cache
+                        if(DoesNotFileExist!=0){
+                            send(sockfd,fileName,strlen(fileName),0);
+                            readSize=recv(sockfd,fileBuff,MAX_BUFF_SIZE,0);
+
+                            //File does not exist in storage server
+                            if(strlen(fileBuff)==0){
+                                close(sockfd);
+                                close(sockfd_connect);
+                                exit(4);
+                            }
+
+                            //check cache
+                            if(fileCount>=MAX_CACHE_SIZE){
+                                char FileToBeDeleted[MAX_FILE_NAME+10];
+                                memset(FileToBeDeleted,0x00,sizeof(FileToBeDeleted));
+
+                                strcpy(FileToBeDeleted,fileList[rand()%MAX_CACHE_SIZE]);
+                                strcpy(filepath,PROXY_CACHE_DIR);
+                                strcat(filepath,FileToBeDeleted);
+                                printf("%d, %s",fileCount,FileToBeDeleted);
+                                //Randomly delete files if cache is full
+                                unlink(filepath);
+                            }
+
+                            memset(filepath,0x00,sizeof(filepath));
+                            strcpy(filepath,PROXY_CACHE_DIR);
+                            strcat(filepath,fileName);
+                            if((filedes=open(filepath,O_CREAT|O_EXCL|O_RDWR,0644))==-1){
+                                    perror("\nopen() fail");
+                                    exit(1);
+                            }
+
+                            //Download file from storage server
+                            while (1){
+                                write(filedes,fileBuff,readSize);
+
+                                memset(fileBuff, 0x00, MAX_BUFF_SIZE);
+                                readSize=recv(sockfd,fileBuff,MAX_BUFF_SIZE,0);
+
+                                if(readSize==0){
+                                    printf("Downloading files from storage server completed\n");
+                                    break;
+                                }
+                            }
+                            
+                            lseek(filedes,(off_t)0,SEEK_SET);
+                            //transfer file to client
+                            while (1){
+                                memset(fileBuff, 0x00, MAX_BUFF_SIZE);
+
+                                readSize=read(filedes,fileBuff,MAX_BUFF_SIZE);
+                                send(sockfd_connect,fileBuff,readSize,0);
+                                
+                                if(readSize==0)
+                                    break;
+                            }
+                            close(filedes);
+                            close(sockfd);
+                            close(sockfd_connect);
+                            exit(3);
+                        }//file exist in cache
+                        else{
+                            memset(filepath,0x00,sizeof(filepath));
+                            strcpy(filepath,PROXY_CACHE_DIR);
+                            strcat(filepath,fileName);
+
+                            if((filedes=open(filepath,O_RDONLY,0644))==-1){
+                            perror("open() fail");
+                            exit(1);
+                            }
+                            
+                            while (1){
+                                memset(fileBuff, 0x00, MAX_BUFF_SIZE);
+
+                                readSize=read(filedes,fileBuff,MAX_BUFF_SIZE);
+                                send(sockfd_connect,fileBuff,readSize,0);
+                                
+                                if(readSize==0)
+                                    break;
+                            }
+                            close(filedes);
+                            close(sockfd);
+                            close(sockfd_connect);
+                            exit(3);
+                        }
                         break;
                     default:
                         break;          
@@ -183,6 +253,9 @@ void child_handler(int sig)
                 break;
             case 3:
                 printf("File transfer ends\n");
+                break;
+            case 4:
+                printf("The requested file does not exist on the storage server.\n");
                 break;
             default:
                 break;
