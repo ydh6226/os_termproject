@@ -13,6 +13,7 @@
 #define SIZE sizeof(struct sockaddr_in)
 
 #define PORT_NUMBER 5000
+#define MAX_BUFF_SIZE 1024
 
 //end child process
 void child_handler(int sig);
@@ -21,14 +22,23 @@ void main()
 {
     int sockfd_listen;
     int sockfd_connect;
-    int filedes;
 
     pid_t pid;
 
+    int menu;
+
+    //menu1
     char fileList[MAX_FILE_NUMBER][MAX_FILE_NAME];
     int fileCount;
 
-    int menu;
+    //menu2
+    int DoesNotFileExist;
+    int filedes;
+    int readSize;
+    char fileName[MAX_FILE_NAME];
+    char filepath[MAX_FILE_NAME+10];
+    char fileBuff[MAX_BUFF_SIZE];
+    
 
     struct sockaddr_in server={AF_INET,htons(PORT_NUMBER),INADDR_ANY};
     struct sigaction act;
@@ -37,13 +47,16 @@ void main()
     sigfillset(&act.sa_mask);
     act.sa_flags=SA_RESTART;
     sigaction(SIGCHLD,&act,NULL);
-/*
+
+/*  TURN OFF - TIMEWAIT
+
     int val = 1;    
     if (setsockopt(sockfd_listen, SOL_SOCKET,SO_REUSEADDR, (char *) &val, sizeof val) < 0) {
 	perror("setsockopt");
 	close(sockfd_listen);
     }
 */
+
     if((sockfd_listen=socket(AF_INET,SOCK_STREAM,0))==-1){
         perror("socket() fail");
         printf("\n");
@@ -69,7 +82,7 @@ void main()
         }
 
         if((pid=fork())==-1){
-            perror("fork() fail : ");
+            perror("fork() fail");
             exit(1);
         }
         else if(pid==0){
@@ -82,15 +95,55 @@ void main()
                 case 1:
                     readFileList(fileList,&fileCount);
                     send(sockfd_connect,fileList,fileCount*MAX_FILE_NAME,0);
+
+                    close(sockfd_connect);
+                    exit(2); //child process die
                     break;
                 case 2:
+                    read(sockfd_connect,fileName,MAX_FILE_NAME);
+                    readFileList(fileList,&fileCount);
+                    for(int i=0;i<fileCount;i++){
+                        if((DoesNotFileExist=strcmp(fileName,fileList[i]))==0){//File exists
+                            break;
+                        }
+                    }
+
+                    //File does not exist
+                    if(DoesNotFileExist!=0){
+                        printf("Client requested a file that does not exist on the server\n");
+                        memset(fileBuff, 0x00, MAX_BUFF_SIZE);
+                        send(sockfd_connect,fileBuff,MAX_BUFF_SIZE,0);
+
+                        close(filedes);
+                        close(sockfd_connect);
+                        exit(4);
+                    }
+
+                    strcpy(filepath,"./file/");
+                    strcat(filepath,fileName);
+                    printf("%s\n",filepath);
+                    if((filedes=open(filepath,O_RDONLY,0644))==-1){
+                        perror("open() fail");
+                        exit(1);
+                    }
+                    
+                    while (1){
+                        memset(fileBuff, 0x00, MAX_BUFF_SIZE);
+
+                        readSize=read(filedes,fileBuff,MAX_BUFF_SIZE);
+                        send(sockfd_connect,fileBuff,readSize,0);
+                        
+                        if(readSize==0)
+                            break;
+                    }
+                    
+                    close(filedes);
+                    close(sockfd_connect);
+                    exit(3); //child process die
                     break;
                 default:
                     break;
             }
-            
-
-            exit(2); //child process die
         }
 
         close(sockfd_connect); //parent process close a connect socket
@@ -106,10 +159,17 @@ void child_handler(int sig)
     while((pid=waitpid(-1,&status,WNOHANG))>0){
         status=status>>8;
         switch(status){
+            case 1:
+                //system call fail
+                break;
             case 2:
                 printf("File list transfer ends\n");
                 break;
             case 3:
+                printf("File transfer ends\n");
+                break;
+            case 4:
+                //Client requested a file that does not exist on the server
                 break;
             default:
                 break;
