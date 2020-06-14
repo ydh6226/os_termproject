@@ -45,7 +45,7 @@ void main(int argc, char **argv)
         exit(1);
     }
     
-    menu=2;//
+    menu=2;
 
     while(1){
         menu=htonl(menu);
