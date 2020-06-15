@@ -162,17 +162,18 @@ void main(int argc, char **argv)
                     printf("\nInput Filename : ");
                     scanf("%s",fileName);
                     fgets(buff,MAX_BUFF_SIZE,stdin);
+                    kill(getppid(),SIGUSR1); //end of printf()
 
                     send(sockfd,fileName,strlen(fileName),0);
                     readSize=recv(sockfd,fileBuff,MAX_BUFF_SIZE,0);
 
                     if(strlen(fileBuff)==0){
-                        printf("\nFile does not exist\n");
+                        printf("\n------------------------------\n");
+                        printf("File does not exist\n");
+                        printf("------------------------------\n");
                         kill(getppid(),SIGUSR1); //end of printf()
                         break;
-                    }
-
-                    kill(getppid(),SIGUSR1); //end of printf()
+                    }                    
 
                     strcpy(filepath,DOWNLOAD_DIR);
                     strcat(filepath,fileName);
