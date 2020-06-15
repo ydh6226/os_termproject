@@ -8,6 +8,7 @@
 #include<fcntl.h>
 #include<wait.h>
 #include<arpa/inet.h>
+#include<sys/stat.h>
 
 #include"file_processing.h"
 
@@ -15,7 +16,7 @@
 
 #define STORAGE_PORT 5001
 #define MAX_BUFF_SIZE 1024
-#define BLOCKED_IP "127.0.0.0"
+#define BLOCKED_IP "192.168.117.141"
 
 #define STORAGE_DIR "./storage/"
 
@@ -44,11 +45,12 @@ void main()
     char filepath[MAX_FILE_NAME+10];
     char fileBuff[MAX_BUFF_SIZE];
     
+    umask(022);
 
     struct sockaddr_in server={AF_INET,htons(STORAGE_PORT),INADDR_ANY};
     struct sockaddr_in client;
     memset(&client,0x00,SIZE);
-    
+
     struct sigaction act;
 
     act.sa_handler=child_handler;

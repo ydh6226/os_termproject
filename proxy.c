@@ -10,6 +10,7 @@
 #include<fcntl.h>
 #include<wait.h>
 #include<time.h>
+#include<sys/stat.h>
 
 #include"file_processing.h"
 
@@ -18,7 +19,7 @@
 #define MAX_BUFF_SIZE 1024
 #define MAX_CACHE_SIZE 3
 
-#define STORAGE_IP "127.0.0.1"
+#define STORAGE_IP "192.168.117.140"
 #define STORAGE_PORT 5001
 
 #define PROXY_PORT 6000
@@ -48,6 +49,8 @@ void main(int argc, char **argv)
     char fileName[MAX_FILE_NAME];
     char fileBuff[MAX_BUFF_SIZE];
     char filepath[MAX_FILE_NAME+10];
+
+    umask(022);
    
     //storage server address
     struct sockaddr_in server = {AF_INET, htons(STORAGE_PORT)};
@@ -134,7 +137,6 @@ void main(int argc, char **argv)
                     case 2:
                         memset(fileName,0x00,sizeof(fileName));
                         recv(sockfd_connect,fileName,MAX_FILE_NAME,0);
-                        printf("%s\n",fileName);
                         readFileList(fileList,&fileCount,PROXY_CACHE_DIR);
                         for(int i=0;i<fileCount;i++){
                             if((DoesNotFileExist=strcmp(fileName,fileList[i]))==0){//File exists
@@ -162,7 +164,7 @@ void main(int argc, char **argv)
                                 strcpy(FileToBeDeleted,fileList[rand()%MAX_CACHE_SIZE]);
                                 strcpy(filepath,PROXY_CACHE_DIR);
                                 strcat(filepath,FileToBeDeleted);
-                                printf("%d, %s",fileCount,FileToBeDeleted);
+                                
                                 //Randomly delete files if cache is full
                                 unlink(filepath);
                             }

@@ -9,6 +9,7 @@
 #include<fcntl.h>
 #include<fcntl.h>
 #include<wait.h>
+#include<sys/stat.h>
 
 #define SIZE sizeof(struct sockaddr_in)
 
@@ -16,10 +17,10 @@
 #define MAX_FILE_NAME 20//length of filename
 #define MAX_BUFF_SIZE 1024
 
-#define STORAGE_IP "127.0.0.1"
+#define STORAGE_IP "192.168.117.140"
 #define STORAGE_PORT 5001
 
-#define PROXY_IP "127.0.0.1"
+#define PROXY_IP "192.168.117.139"
 #define PROXY_PORT 6000
 
 #define DOWNLOAD_DIR "./download/"
@@ -46,6 +47,8 @@ void main(int argc, char **argv)
     char fileName[MAX_FILE_NAME];
     char fileBuff[MAX_BUFF_SIZE];
     char filepath[MAX_FILE_NAME+10];
+
+    umask(022);
    
     //storage server address
     struct sockaddr_in server = {AF_INET, htons(STORAGE_PORT)};
@@ -53,7 +56,7 @@ void main(int argc, char **argv)
 
     //proxy address
     struct sockaddr_in proxy = {AF_INET, htons(PROXY_PORT)};
-    server.sin_addr.s_addr = inet_addr(PROXY_IP);
+    proxy.sin_addr.s_addr = inet_addr(PROXY_IP);
 
     sigset_t set1;
     sigemptyset(&set1);
