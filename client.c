@@ -84,9 +84,9 @@ void main(int argc, char **argv)
             pause();//waiting printf() of child process
 
         printf("\n==============================\n");
-        printf("1. File list\n");
+        printf("1. Request File list\n");
         printf("2. Request File\n");
-        printf("3. Rroxy ON/OFF(default : OFF)\n");
+        printf("3. Proxy ON/OFF(current : %s)\n",(proxyOn==0)?"OFF":"ON");
 
         do{
             printf("\nInput menu : ");
@@ -110,7 +110,7 @@ void main(int argc, char **argv)
         }
 
         sigprocmask(SIG_SETMASK,&set2,NULL); //don't block SIGCHLD, block SIGUSR1
-        fflush(stdin);
+        fgets(buff,MAX_BUFF_SIZE,stdin);
 
         if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("socket() fail");
@@ -162,19 +162,18 @@ void main(int argc, char **argv)
                     printf("\nInput Filename : ");
                     scanf("%s",fileName);
                     fgets(buff,MAX_BUFF_SIZE,stdin);
-                    kill(getppid(),SIGUSR1); //end of printf()
 
                     send(sockfd,fileName,strlen(fileName),0);
+                    memset(fileBuff,0x00,MAX_BUFF_SIZE);
+					usleep(10);
+		    		kill(getppid(),SIGUSR1); //end of printf()			
                     readSize=recv(sockfd,fileBuff,MAX_BUFF_SIZE,0);
 
                     if(strlen(fileBuff)==0){
-                        printf("\n------------------------------\n");
-                        printf("File does not exist\n");
-                        printf("------------------------------\n");
-                        kill(getppid(),SIGUSR1); //end of printf()
+                        exit(4);
                         break;
                     }                    
-
+		    
                     strcpy(filepath,DOWNLOAD_DIR);
                     strcat(filepath,fileName);
                     unlink(filepath);
@@ -224,6 +223,11 @@ void child_handler(int sig)
                 printf("File download complete\n");
                 printf("------------------------------\n");
                 break;
+		case 4:
+				printf("\n------------------------------\n");
+                printf("File does not exist\n");
+                printf("------------------------------\n");
+				break;
             default:
                 break;
         }

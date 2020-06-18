@@ -65,7 +65,7 @@ void main(int argc, char **argv)
     act.sa_flags=SA_RESTART;
     sigaction(SIGCHLD,&act,NULL);
 
-    srand((unsigned)time(NULL));
+    srand(time(NULL));
 
     //make socket for accepting client
     if((sockfd_listen=socket(AF_INET,SOCK_STREAM,0))==-1){
@@ -151,6 +151,7 @@ void main(int argc, char **argv)
 
                             //File does not exist in storage server
                             if(strlen(fileBuff)==0){
+				send(sockfd_connect,fileBuff,0x01,0);
                                 close(sockfd);
                                 close(sockfd_connect);
                                 exit(4);
